@@ -1,0 +1,97 @@
+---
+- name: Play to setup apache servers
+  hosts: backend_servers
+  vars:
+    apache_packages:
+      - httpd
+      - php
+      - php-mysqlnd
+    apache_services:
+      - httpd
+    mysql_info:
+      user: devops
+      database: userdb
+      password: redhat
+  handlers:
+    - name: restart_apache
+      service:
+        name: "{{ __service }}"
+        state: restarted
+      loop: "{{ apache_services }}"
+      loop_control:
+        loop_var: __service
+
+  tasks:
+    - name: Install Firewalld
+      yum:
+        name: firewalld
+        state: latest
+
+    - name: Start firewalld
+      service:
+        name: firewalld
+        enabled: yes
+        state: started
+
+    - name: Open service port
+      firewalld:
+        service: http
+        state: enabled
+        immediate: true
+        permanent: true
+
+    - name: Open tcp port
+      firewalld:
+        port: "8080/tcp"
+        permanent: yes
+        immediate: yes
+        state: enabled
+
+    - debug:
+        msg: "Start Apache server setup"
+
+    - name: Install apache server
+      yum:
+        name: "{{ __package }}"
+        state: latest
+      loop: "{{ apache_packages }}"
+      loop_control:
+        loop_var: __package
+
+    - name: Change apache port
+      replace:
+        path: /etc/httpd/conf/httpd.conf
+        regexp: '^Listen.*$'
+        replace: 'Listen 8080'
+
+    - name: Copy image directory
+      copy:
+        src: images
+        dest: /var/www/html/
+
+    - name: Copy php program template
+      copy:
+        src: index.php
+        dest: /var/www/html/index.php
+      notify:
+        - restart_apache
+
+    - name: Start apache server
+      service:
+        name: "{{ __service }}"
+        state: restarted
+      loop: "{{ apache_services }}"
+      loop_control:
+        loop_var: __service
+
+    - name: enable selinux boolean
+      seboolean:
+        name: "{{ item }}"
+        state: yes
+        persistent: yes
+      loop:
+        - httpd_can_network_connect_db
+        - httpd_can_network_connect
+
+    - debug:
+        msg: "Finished Apache server setup"

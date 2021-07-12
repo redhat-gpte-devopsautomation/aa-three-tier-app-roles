@@ -1,0 +1,71 @@
+---
+- name: Play to setup Haproxy
+  hosts: loadbalancers
+  vars:
+    haproxy_packages:
+      - haproxy
+    haproxy_services:
+      - haproxy
+  handlers:
+    - name: restart_haproxy
+      service:
+        name: "{{ __service }}"
+        state: restarted
+      loop: "{{ haproxy_services }}"
+      loop_control:
+        loop_var: __service
+  tasks:
+    - name: Install Firewalld
+      yum:
+        name: firewalld
+        state: latest
+
+    - name: Start firewalld
+      service:
+        name: firewalld
+        enabled: yes
+        state: started
+
+    - name: Open service port
+      firewalld:
+        service: http
+        state: enabled
+        immediate: true
+        permanent: true
+
+    - name: Open tcp port
+      firewalld:
+        port: "5000/tcp"
+        permanent: yes
+        immediate: yes
+        state: enabled
+
+    - debug:
+        msg: "Start HAproxy server setup"
+
+    - name: Install HAproxy
+      yum:
+        name: "{{ __package }}"
+        state: latest
+      loop: "{{ haproxy_packages }}"
+      loop_control:
+        loop_var: __package
+
+    - name: Copy HAproxy template
+      copy:
+        src: haproxy.cfg
+        dest: /etc/haproxy/haproxy.cfg
+      notify:
+        - restart_haproxy
+
+    - name: Start HAproxy
+      service:
+        name: "{{ __service }}"
+        state: started
+        enabled: yes
+      loop: "{{ haproxy_services }}"
+      loop_control:
+        loop_var: __service
+
+    - debug:
+        msg: "Finished HAproxy server setup"

@@ -1,0 +1,78 @@
+---
+- name: Play to setup mysql server
+  hosts: db_servers
+  vars:
+    mysql_info:
+      user: devops
+      privilege: "*.*:ALL,GRANT"
+      database: userdb
+      password: redhat
+      backupfile: userdb.backup
+    mysql_packages:
+      - mariadb
+      - mariadb-server
+      - python3-PyMySQL
+    mysql_services:
+      - mariadb
+
+  tasks:
+    - name: Install Firewalld
+      yum:
+        name: firewalld
+        state: latest
+
+    - name: Start firewalld
+      service:
+        name: firewalld
+        enabled: yes
+        state: started
+
+    - name: Open service port
+      firewalld:
+        service: mysql
+        state: enabled
+        immediate: true
+        permanent: true
+
+    - debug:
+        msg: "Start Mysql server setup"
+
+    - name: Install mysql
+      yum:
+        name: "{{ __package }}"
+        state: latest
+      loop: "{{ mysql_packages }}"
+      loop_control:
+        loop_var: __package
+
+    - name: Start mysql
+      service:
+        name: "{{ __service }}"
+        enabled: true
+        state: started
+      loop: "{{ mysql_services }}"
+      loop_control:
+        loop_var: __service
+
+    - name: Set user's privileges
+      mysql_user:
+        name: "{{ mysql_info.user }}"
+        priv: "{{ mysql_info.privilege }}"
+        append_privs: yes
+        password: "{{ mysql_info.password }}"
+        host: '%'
+
+    - name: Copy database backup
+      copy:
+        src: "{{ mysql_info.backupfile }}"
+        dest: /tmp
+
+    - name: Restore database from backup
+      mysql_db:
+        name: "{{  mysql_info.database }}"
+        state: import
+        target: "/tmp/{{ mysql_info.backupfile }}"
+
+    - debug:
+        msg: "Finished Mysql server setup"
+

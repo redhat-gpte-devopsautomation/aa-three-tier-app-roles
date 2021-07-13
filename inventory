@@ -5,7 +5,7 @@ frontend.example.com
 app1.example.com
 app2.example.com
 
-[db_servers]
+[database_servers]
 appdb.example.com
 
 [all:vars]

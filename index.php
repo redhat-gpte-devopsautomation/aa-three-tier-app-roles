@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html><head><title>Ansible GitOps Integration Lab</title></head><body><center>
+<html><head><title>Ansible Application</title></head><body><center>
 <?php
   $db=mysqli_connect("appdb.example.com","devops","redhat","userdb");
   if (mysqli_connect_errno()){ 
